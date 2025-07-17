@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>時計</title>
+  <link rel="icon" href="data/favicon_time.png" type="image/png" />
+  <style>
+    :root {
+      --primary: #1e1e2f;
+      --accent: #4fc3f7;
+      --text: #ffffff;
+      --error: #ff5252;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: var(--primary);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .app {
+      text-align: center;
+      width: 90%;
+      max-width: 600px;
+    }
+
+    .tabs {
+      display: flex;
+      justify-content: space-around;
+      background: #2e2e3e;
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 1rem;
+      cursor: pointer;
+      background: #2e2e3e;
+      color: var(--text);
+      transition: background 0.3s;
+    }
+
+    .tab:hover,
+    .tab.active {
+      background: var(--accent);
+    }
+
+    .content {
+      background: #3a3a4f;
+      border-radius: 0 0 8px 8px;
+      padding: 2rem;
+      font-size: clamp(2rem, 5vw, 4rem);
+      animation: fadeIn 0.5s ease;
+    }
+
+    .controls {
+      margin-top: 1rem;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    button,
+    input[type='number'] {
+      background: var(--accent);
+      border: none;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      color: #000;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    input[type='number'] {
+      width: 4rem;
+      text-align: center;
+    }
+
+    button:hover {
+      background: #81d4fa;
+    }
+
+    .error-dialog {
+      background: var(--error);
+      color: white;
+      font-size: 1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1rem;
+      display: none;
+    }
+
+    .error-dialog svg {
+      margin-right: 0.5rem;
+    }
+
+    .credits {
+      margin-top: 2rem;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+
+    .credits a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    #lapListContainer {
+      max-height: 150px;
+      overflow-y: auto;
+      background: #222233;
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      text-align: left;
+      color: var(--accent);
+      user-select: none;
+      margin-top: 1rem;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    #lapListContainer.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    #lapList li {
+      border-bottom: 1px solid #444466;
+      padding: 0.2rem 0;
+      animation: fadeInUp 0.3s ease forwards;
+    }
+
+    #lapList li:last-child {
+      border-bottom: none;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+   @keyframes flash {
+  0% { background-color: var(--accent); color: var(--text); }
+  50% { background-color: #ffffff; color: #000000; }
+  100% { background-color: var(--accent); color: var(--text); }
+}
+
+
+   .flashing {
+  animation: flash 1.5s ease-in-out infinite;
+  border-radius: 8px; /* ← ここ追加するだけ！ */
+}
+
+    @media (max-width: 480px) {
+      .content {
+        font-size: clamp(1.5rem, 8vw, 3rem);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('clock')">時計</div>
+      <div class="tab" onclick="showTab('timer')">タイマー</div>
+      <div class="tab" onclick="showTab('stopwatch')">ストップウォッチ</div>
+    </div>
+    <div class="content" id="clock">
+      <div id="clockDate" style="font-size: 1.5rem; margin-bottom: 0.5rem"></div>
+      <div id="clockTime"></div>
+    </div>
+
+    <div class="content" id="timer" style="display: none">
+      <div id="timerDisplay">00:00:00</div>
+      <div class="controls">
+        <input type="number" id="inputHours" min="0" max="23" placeholder="時" />
+        <input type="number" id="inputMinutes" min="0" max="59" placeholder="分" />
+        <input type="number" id="inputSeconds" min="0" max="59" placeholder="秒" />
+      </div>
+      <div class="controls">
+        <button onclick="startAndSetTimer()">開始</button>
+        <button onclick="stopTimer()">停止</button>
+        <button onclick="resetTimer()">リセット</button>
+      </div>
+      <div class="error-dialog" id="timerError" style="display:none;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 24 24">
+          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+        </svg>
+        入力されていません
+      </div>
+    </div>
+
+    <div class="content" id="stopwatch" style="display: none">
+      <div id="stopwatchDisplay">00:00:00.00</div>
+      <div class="controls">
+        <button onclick="startStopwatch()">開始</button>
+        <button onclick="stopStopwatch()">停止</button>
+        <button onclick="resetStopwatch()">リセット</button>
+        <button onclick="lapStopwatch()">ラップ</button>
+        <button onclick="clearLaps()">ラップクリア</button>
+      </div>
+      <div id="lapListContainer">
+        <ul id="lapList"></ul>
+      </div>
+    </div>
+
+    <div class="credits">
+      Created by <strong>kaito</strong> ・
+      <a href="https://www.instagram.com/kaito_yukkuri/" target="_blank">Instagram</a> ・
+      <a href="https://x.com/kaito_yukuri" target="_blank">X</a>
+    </div>
+  </div>
+
+  <audio id="alarmSound" src="data/alarm.mp3" preload="auto" loop></audio>
+
+  <script>
+    const tabs = document.querySelectorAll('.tab');
+    const contents = {
+      clock: document.getElementById('clock'),
+      timer: document.getElementById('timer'),
+      stopwatch: document.getElementById('stopwatch'),
+    };
+
+    function showTab(tabName) {
+      tabs.forEach((t) => t.classList.remove('active'));
+      document.querySelector(`.tab[onclick*="${tabName}"]`).classList.add('active');
+      for (const name in contents) contents[name].style.display = name === tabName ? 'block' : 'none';
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const date = now.toLocaleDateString('ja-JP');
+      const time = now.toLocaleTimeString('ja-JP', { hour12: false });
+      document.getElementById('clockDate').textContent = date;
+      document.getElementById('clockTime').textContent = time;
+    }
+    setInterval(updateClock, 1000);
+
+    function sanitizeInput(e) {
+      let val = e.target.value;
+      val = val.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0));
+      val = val.replace(/[^0-9]/g, '');
+      e.target.value = val;
+    }
+
+    ['inputHours', 'inputMinutes', 'inputSeconds'].forEach(id => {
+      document.getElementById(id).addEventListener('input', sanitizeInput);
+    });
+
+    let timerInterval, timerSeconds = 0;
+    function updateTimerDisplay() {
+      const hrs = String(Math.floor(timerSeconds / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((timerSeconds % 3600) / 60)).padStart(2, '0');
+      const secs = String(timerSeconds % 60).padStart(2, '0');
+      document.getElementById('timerDisplay').textContent = `${hrs}:${mins}:${secs}`;
+    }
+    function startAndSetTimer() {
+      const hrs = parseInt(document.getElementById('inputHours').value) || 0;
+      const mins = parseInt(document.getElementById('inputMinutes').value) || 0;
+      const secs = parseInt(document.getElementById('inputSeconds').value) || 0;
+      const total = hrs * 3600 + mins * 60 + secs;
+      const err = document.getElementById('timerError');
+      const timerDisplay = document.getElementById('timerDisplay');
+
+      if (total === 0) {
+        err.style.display = 'flex';
+        timerDisplay.classList.add('flashing');
+        setTimeout(() => {
+          err.style.display = 'none';
+          timerDisplay.classList.remove('flashing');
+        }, 2400);
+        return;
+      }
+
+      timerSeconds = total;
+      updateTimerDisplay();
+
+      ['inputHours', 'inputMinutes', 'inputSeconds'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+
+      if (timerInterval) return;
+      timerInterval = setInterval(() => {
+        if (timerSeconds > 0) {
+          timerSeconds--;
+          updateTimerDisplay();
+        } else {
+          clearInterval(timerInterval);
+          timerInterval = null;
+          document.getElementById('alarmSound').play();
+          timerDisplay.classList.add('flashing');
+        }
+      }, 1000);
+    }
+    function stopTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      document.getElementById('alarmSound').pause();
+      document.getElementById('alarmSound').currentTime = 0;
+      document.getElementById('timerDisplay').classList.remove('flashing');
+    }
+    function resetTimer() {
+      stopTimer();
+      timerSeconds = 0;
+      updateTimerDisplay();
+      ['inputHours', 'inputMinutes', 'inputSeconds'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+    }
+    resetTimer();
+
+    let stopwatchInterval, stopwatchMilliseconds = 0;
+    const lapList = document.getElementById('lapList');
+    const lapListContainer = document.getElementById('lapListContainer');
+
+    function updateStopwatchDisplay() {
+      const totalSeconds = Math.floor(stopwatchMilliseconds / 100);
+      const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+      const secs = String(totalSeconds % 60).padStart(2, '0');
+      const ms = String(stopwatchMilliseconds % 100).padStart(2, '0');
+      document.getElementById('stopwatchDisplay').textContent = `${hrs}:${mins}:${secs}.${ms}`;
+    }
+    function startStopwatch() {
+      if (stopwatchInterval) return;
+      stopwatchInterval = setInterval(() => {
+        stopwatchMilliseconds++;
+        updateStopwatchDisplay();
+      }, 10);
+    }
+    function stopStopwatch() {
+      clearInterval(stopwatchInterval);
+      stopwatchInterval = null;
+    }
+    function resetStopwatch() {
+      stopStopwatch();
+      stopwatchMilliseconds = 0;
+      updateStopwatchDisplay();
+      clearLaps();
+    }
+    function lapStopwatch() {
+      if (!stopwatchInterval) return;
+      const lapTime = document.getElementById('stopwatchDisplay').textContent;
+      const li = document.createElement('li');
+      li.textContent = lapTime;
+      li.style.opacity = 0;
+      lapList.appendChild(li);
+      setTimeout(() => {
+        li.style.transition = 'opacity 0.3s ease';
+        li.style.opacity = 1;
+      }, 50);
+      updateLapVisibility();
+    }
+    function clearLaps() {
+      lapList.innerHTML = '';
+      updateLapVisibility();
+    }
+    function updateLapVisibility() {
+      lapListContainer.classList.toggle('visible', lapList.children.length > 0);
+    }
+    resetStopwatch();
+  </script>
+</body>
+</html>
